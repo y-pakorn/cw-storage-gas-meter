@@ -3,6 +3,8 @@ use std::cell::RefCell;
 use cosmwasm_std::{MemoryStorage, Storage};
 
 /// A simple storage struct that behave same as [MemoryStorage] but has an additional gas logging.
+///
+/// More info: <https://github.com/cosmos/cosmos-sdk/blob/main/store/gaskv/store.go>
 #[derive(Default, Debug)]
 pub struct MemoryStorageWithGas {
     storage: MemoryStorage,
