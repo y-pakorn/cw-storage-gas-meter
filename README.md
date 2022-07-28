@@ -1,6 +1,6 @@
 # Simple Storage Gas Meter
 
-A simple gas meter for measuring estimate gas usage from kv store.
+A simple CosmWasm storage gas meter for estimating gas usage from kv store.
 
 ## Usage
 
