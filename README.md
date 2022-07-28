@@ -1,8 +1,14 @@
 # Simple Storage Gas Meter
 
-<img alt="Crates.io" src="https://img.shields.io/crates/v/cw-storage-gas-meter">
-<img alt="docs.rs" src="https://img.shields.io/docsrs/cw-storage-gas-meter">
-<img alt="Crates.io" src="https://img.shields.io/crates/l/cw-storage-gas-meter">
+<p align="center">
+    <a href="https://crates.io/crates/cw-storage-gas-meter">
+        <img alt="Crates.io" src="https://img.shields.io/crates/v/cw-storage-gas-meter">
+    </a>
+    <a href="https://docs.rs/cw-storage-gas-meter">
+        <img alt="docs.rs" src="https://img.shields.io/docsrs/cw-storage-gas-meter">
+    </a>
+    <img alt="Crates.io" src="https://img.shields.io/crates/l/cw-storage-gas-meter">
+</p>
 
 A simple CosmWasm storage gas meter for estimating gas usage from kv store.
 
