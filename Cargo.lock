@@ -179,7 +179,7 @@ dependencies = [
 
 [[package]]
 name = "cw-storage-gas-meter"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "cosmwasm-std",
  "cw-multi-test",
