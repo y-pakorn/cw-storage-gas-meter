@@ -2,7 +2,7 @@ use std::cell::RefCell;
 
 use cosmwasm_std::{MemoryStorage, Storage};
 
-/// Same as `cosmwasm_std::MemoryStorage` but has additional gas logging
+/// A simple storage struct that behave same as [MemoryStorage] but has an additional gas logging.
 #[derive(Default, Debug)]
 pub struct MemoryStorageWithGas {
     storage: MemoryStorage,
@@ -11,10 +11,12 @@ pub struct MemoryStorageWithGas {
 }
 
 impl MemoryStorageWithGas {
+    /// Create a new storage instance with default gas config.
     pub fn new() -> Self {
         Self::default()
     }
 
+    /// Create a new storage instance with custom `gas_config` gas config.
     pub fn new_with_gas_config(gas_config: StorageGasConfig) -> Self {
         Self {
             gas_config,
@@ -22,37 +24,43 @@ impl MemoryStorageWithGas {
         }
     }
 
+    /// Get total gas usage from current storage instance.
     #[inline(always)]
     pub fn total_gas_used(&self) -> u64 {
         self.gas_used.borrow().total
     }
 
+    /// Get gas usage from latest storage operation.
     #[inline(always)]
     pub fn last_gas_used(&self) -> u64 {
         self.gas_used.borrow().last
     }
 
+    /// Reset current total gas to `0`.
     pub fn reset_gas(&self) {
         self.gas_used.borrow_mut().total = 0;
     }
 
+    /// Log current gas usage into [std::io::stdout].
     pub fn log_gas(&self) {
         println!("{:#?}", self.gas_used);
     }
 }
 
-/// Helper struct to storage total gas used and storage interaction count
+/// Helper struct to store total gas used and interaction count.
+///
+/// Amount of gas stored in [Self::last] for last gas used and [Self::total] for total gas used.
 #[derive(Default, Debug, PartialEq)]
 pub struct StorageGasUsed {
-    total: u64,
-    last: u64,
-    read_cnt: u64,
-    write_cnt: u64,
-    delete_cnt: u64,
-    iter_next_cnt: u64,
+    pub total: u64,
+    pub last: u64,
+    pub read_cnt: u64,
+    pub write_cnt: u64,
+    pub delete_cnt: u64,
+    pub iter_next_cnt: u64,
 }
 
-/// Constant gas config to store gas info based on sdk's KV store pattern
+/// Constant gas config struct to store gas info based on sdk's KV store pattern.
 #[derive(Debug)]
 pub struct StorageGasConfig {
     pub has_cost: u64,
