@@ -22,8 +22,14 @@ impl MemoryStorageWithGas {
         }
     }
 
+    #[inline(always)]
     pub fn total_gas_used(&self) -> u64 {
         self.gas_used.borrow().total
+    }
+
+    #[inline(always)]
+    pub fn last_gas_used(&self) -> u64 {
+        self.gas_used.borrow().last
     }
 
     pub fn reset_gas(&self) {
@@ -39,6 +45,7 @@ impl MemoryStorageWithGas {
 #[derive(Default, Debug, PartialEq)]
 pub struct StorageGasUsed {
     total: u64,
+    last: u64,
     read_cnt: u64,
     write_cnt: u64,
     delete_cnt: u64,
@@ -75,8 +82,9 @@ impl Storage for MemoryStorageWithGas {
     fn get(&self, key: &[u8]) -> Option<Vec<u8>> {
         {
             let mut gas = self.gas_used.borrow_mut();
-            gas.total += self.gas_config.read_cost_flat
+            gas.last = self.gas_config.read_cost_flat
                 + key.len() as u64 * self.gas_config.read_cost_per_byte;
+            gas.total += gas.last;
             gas.read_cnt += 1;
         }
 
@@ -92,7 +100,8 @@ impl Storage for MemoryStorageWithGas {
         Box::new(self.storage.range(start, end, order).map(|e| {
             {
                 let mut gas = self.gas_used.borrow_mut();
-                gas.total += self.gas_config.iter_next_cost_flat;
+                gas.last = self.gas_config.iter_next_cost_flat;
+                gas.total += gas.last;
                 gas.iter_next_cnt += 1;
             }
             e
@@ -102,8 +111,9 @@ impl Storage for MemoryStorageWithGas {
     fn set(&mut self, key: &[u8], value: &[u8]) {
         {
             let mut gas = self.gas_used.borrow_mut();
-            gas.total += self.gas_config.write_cost_flat
+            gas.last = self.gas_config.write_cost_flat
                 + key.len() as u64 * self.gas_config.write_cost_per_byte;
+            gas.total += gas.last;
             gas.write_cnt += 1;
         }
 
@@ -113,7 +123,8 @@ impl Storage for MemoryStorageWithGas {
     fn remove(&mut self, key: &[u8]) {
         {
             let mut gas = self.gas_used.borrow_mut();
-            gas.total += self.gas_config.delete_cost;
+            gas.last = self.gas_config.delete_cost;
+            gas.total += gas.last;
             gas.delete_cnt += 1;
         }
 
