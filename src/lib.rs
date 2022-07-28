@@ -1,52 +1,16 @@
+use cosmwasm_std::MemoryStorage;
 use std::cell::RefCell;
 
-use cosmwasm_std::{MemoryStorage, Storage};
+pub mod impls;
 
 /// A simple storage struct that behave same as [MemoryStorage] but has an additional gas logging.
 ///
 /// More info: <https://github.com/cosmos/cosmos-sdk/blob/main/store/gaskv/store.go>
 #[derive(Default, Debug)]
 pub struct MemoryStorageWithGas {
-    storage: MemoryStorage,
+    storage: RefCell<MemoryStorage>,
     pub gas_used: RefCell<StorageGasUsed>,
     pub gas_config: StorageGasConfig,
-}
-
-impl MemoryStorageWithGas {
-    /// Create a new storage instance with default gas config.
-    pub fn new() -> Self {
-        Self::default()
-    }
-
-    /// Create a new storage instance with custom `gas_config` gas config.
-    pub fn new_with_gas_config(gas_config: StorageGasConfig) -> Self {
-        Self {
-            gas_config,
-            ..Default::default()
-        }
-    }
-
-    /// Get total gas usage from current storage instance.
-    #[inline(always)]
-    pub fn total_gas_used(&self) -> u64 {
-        self.gas_used.borrow().total
-    }
-
-    /// Get gas usage from latest storage operation.
-    #[inline(always)]
-    pub fn last_gas_used(&self) -> u64 {
-        self.gas_used.borrow().last
-    }
-
-    /// Reset current total gas to `0`.
-    pub fn reset_gas(&self) {
-        self.gas_used.borrow_mut().total = 0;
-    }
-
-    /// Log current gas usage into [std::io::stdout].
-    pub fn log_gas(&self) {
-        println!("{:#?}", self.gas_used);
-    }
 }
 
 /// Helper struct to store total gas used and interaction count.
@@ -88,80 +52,20 @@ impl Default for StorageGasConfig {
     }
 }
 
-impl Storage for MemoryStorageWithGas {
-    fn get(&self, key: &[u8]) -> Option<Vec<u8>> {
-        let value = self.storage.get(key);
-
-        {
-            let mut gas = self.gas_used.borrow_mut();
-            gas.last = self.gas_config.read_cost_flat
-                + (key.len() + value.as_ref().unwrap_or(&Vec::new()).len()) as u64
-                    * self.gas_config.read_cost_per_byte;
-            gas.total += gas.last;
-            gas.read_cnt += 1;
-        }
-
-        value
-    }
-
-    fn range<'a>(
-        &'a self,
-        start: Option<&[u8]>,
-        end: Option<&[u8]>,
-        order: cosmwasm_std::Order,
-    ) -> Box<dyn Iterator<Item = cosmwasm_std::Record> + 'a> {
-        Box::new(self.storage.range(start, end, order).map(|e| {
-            {
-                let mut gas = self.gas_used.borrow_mut();
-                gas.last = self.gas_config.iter_next_cost_flat
-                    + self.gas_config.read_cost_flat
-                    + (e.0.len() + e.1.len()) as u64 * self.gas_config.read_cost_per_byte;
-                gas.total += gas.last;
-                gas.iter_next_cnt += 1;
-            }
-            e
-        }))
-    }
-
-    fn set(&mut self, key: &[u8], value: &[u8]) {
-        {
-            let mut gas = self.gas_used.borrow_mut();
-            gas.last = self.gas_config.write_cost_flat
-                + (key.len() + value.len()) as u64 * self.gas_config.write_cost_per_byte;
-            gas.total += gas.last;
-            gas.write_cnt += 1;
-        }
-
-        self.storage.set(key, value)
-    }
-
-    fn remove(&mut self, key: &[u8]) {
-        {
-            let mut gas = self.gas_used.borrow_mut();
-            gas.last = self.gas_config.delete_cost;
-            gas.total += gas.last;
-            gas.delete_cnt += 1;
-        }
-
-        self.storage.remove(key)
-    }
-}
-
 #[cfg(test)]
 mod tests {
-    use cosmwasm_std::{Order, StdResult};
+    use cosmwasm_std::{Addr, Coin, Order, StdResult};
+    use cw_multi_test::AppBuilder;
     use cw_storage_plus::Map;
     use std::{error::Error, mem::drop};
 
     use crate::{MemoryStorageWithGas, StorageGasUsed};
 
     #[test]
-    fn default_gas() -> Result<(), Box<dyn Error>> {
+    fn default_gas() {
         let storage = MemoryStorageWithGas::default();
 
         assert_eq!(storage.gas_used.take(), StorageGasUsed::default());
-
-        Ok(())
     }
 
     #[test]
@@ -205,5 +109,26 @@ mod tests {
         drop(gas);
 
         Ok(())
+    }
+
+    #[test]
+    fn works_with_multi_test() {
+        let storage = MemoryStorageWithGas::new();
+
+        AppBuilder::new()
+            .with_storage(&storage)
+            .build(|r, _, storage| {
+                r.bank
+                    .init_balance(
+                        storage,
+                        &Addr::unchecked("admin"),
+                        vec![Coin::new(100, "uluna")],
+                    )
+                    .unwrap();
+            });
+
+        let gas = storage.gas_used.borrow();
+        assert_eq!(gas.last, 3650);
+        assert_eq!(gas.write_cnt, 1);
     }
 }

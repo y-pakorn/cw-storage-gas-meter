@@ -10,3 +10,4 @@ cosmwasm-std = "1.0.0"
 
 [dev-dependencies]
 cw-storage-plus = "0.13.4"
+cw-multi-test = "0.13.4"
