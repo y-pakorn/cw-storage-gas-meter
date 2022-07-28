@@ -134,7 +134,9 @@ impl Storage for MemoryStorageWithGas {
 
 #[cfg(test)]
 mod tests {
-    use std::error::Error;
+    use cosmwasm_std::{Order, StdResult};
+    use cw_storage_plus::Map;
+    use std::{error::Error, mem::drop};
 
     use crate::{MemoryStorageWithGas, StorageGasUsed};
 
@@ -143,6 +145,49 @@ mod tests {
         let storage = MemoryStorageWithGas::default();
 
         assert_eq!(storage.gas_used.take(), StorageGasUsed::default());
+
+        Ok(())
+    }
+
+    #[test]
+    fn consume_gas() -> Result<(), Box<dyn Error>> {
+        let mut storage = MemoryStorageWithGas::default();
+        let map = Map::<u64, Vec<u8>>::new("0");
+
+        // write
+        let data = b"hello";
+        map.save(&mut storage, 0, &data.to_vec())?;
+
+        let gas = storage.gas_used.borrow();
+        assert_eq!(gas.last, 2330);
+        assert_eq!(gas.write_cnt, 1);
+        drop(gas);
+
+        // read
+        let loaded_data = map.load(&storage, 0)?;
+
+        let gas = storage.gas_used.borrow();
+        assert_eq!(loaded_data, data);
+        assert_eq!(gas.last, 1033);
+        assert_eq!(gas.read_cnt, 1);
+        drop(gas);
+
+        // iter next
+        map.range(&storage, None, None, Order::Ascending)
+            .collect::<StdResult<Vec<_>>>()?;
+
+        let gas = storage.gas_used.borrow();
+        assert_eq!(gas.last, 30);
+        assert_eq!(gas.iter_next_cnt, 1);
+        drop(gas);
+
+        // delete
+        map.remove(&mut storage, 0);
+
+        let gas = storage.gas_used.borrow();
+        assert_eq!(gas.last, 1000);
+        assert_eq!(gas.delete_cnt, 1);
+        drop(gas);
 
         Ok(())
     }
