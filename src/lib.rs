@@ -11,6 +11,17 @@ pub struct MemoryStorageWithGas {
 }
 
 impl MemoryStorageWithGas {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn new_with_gas_config(gas_config: StorageGasConfig) -> Self {
+        Self {
+            gas_config,
+            ..Default::default()
+        }
+    }
+
     pub fn total_gas_used(&self) -> u64 {
         self.gas_used.borrow().total
     }
