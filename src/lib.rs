@@ -80,15 +80,18 @@ impl Default for StorageGasConfig {
 
 impl Storage for MemoryStorageWithGas {
     fn get(&self, key: &[u8]) -> Option<Vec<u8>> {
+        let value = self.storage.get(key);
+
         {
             let mut gas = self.gas_used.borrow_mut();
             gas.last = self.gas_config.read_cost_flat
-                + key.len() as u64 * self.gas_config.read_cost_per_byte;
+                + (key.len() + value.as_ref().unwrap_or(&Vec::new()).len()) as u64
+                    * self.gas_config.read_cost_per_byte;
             gas.total += gas.last;
             gas.read_cnt += 1;
         }
 
-        self.storage.get(key)
+        value
     }
 
     fn range<'a>(
@@ -100,7 +103,9 @@ impl Storage for MemoryStorageWithGas {
         Box::new(self.storage.range(start, end, order).map(|e| {
             {
                 let mut gas = self.gas_used.borrow_mut();
-                gas.last = self.gas_config.iter_next_cost_flat;
+                gas.last = self.gas_config.iter_next_cost_flat
+                    + self.gas_config.read_cost_flat
+                    + (e.0.len() + e.1.len()) as u64 * self.gas_config.read_cost_per_byte;
                 gas.total += gas.last;
                 gas.iter_next_cnt += 1;
             }
@@ -112,7 +117,7 @@ impl Storage for MemoryStorageWithGas {
         {
             let mut gas = self.gas_used.borrow_mut();
             gas.last = self.gas_config.write_cost_flat
-                + key.len() as u64 * self.gas_config.write_cost_per_byte;
+                + (key.len() + value.len()) as u64 * self.gas_config.write_cost_per_byte;
             gas.total += gas.last;
             gas.write_cnt += 1;
         }
@@ -159,7 +164,7 @@ mod tests {
         map.save(&mut storage, 0, &data.to_vec())?;
 
         let gas = storage.gas_used.borrow();
-        assert_eq!(gas.last, 2330);
+        assert_eq!(gas.last, 2960);
         assert_eq!(gas.write_cnt, 1);
         drop(gas);
 
@@ -168,7 +173,7 @@ mod tests {
 
         let gas = storage.gas_used.borrow();
         assert_eq!(loaded_data, data);
-        assert_eq!(gas.last, 1033);
+        assert_eq!(gas.last, 1096);
         assert_eq!(gas.read_cnt, 1);
         drop(gas);
 
@@ -177,7 +182,7 @@ mod tests {
             .collect::<StdResult<Vec<_>>>()?;
 
         let gas = storage.gas_used.borrow();
-        assert_eq!(gas.last, 30);
+        assert_eq!(gas.last, 1126);
         assert_eq!(gas.iter_next_cnt, 1);
         drop(gas);
 
